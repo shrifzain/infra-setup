@@ -69,8 +69,12 @@ curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-contai
 # Add GPG key
 curl -s -L https://nvidia.github.io/libnvidia-container/gpgkey | \
   sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit.gpg
+# Prevent kernel upgrades (so no reboot prompt)
+sudo apt-mark hold linux-image-generic linux-headers-generic
+# Install toolkit silently without recommends
 sudo apt-get update -yq
-sudo apt-get install -yq nvidia-container-toolkit
+sudo apt-get install -yq --no-install-recommends nvidia-container-toolkit
+# Configure Docker runtime
 sudo nvidia-ctk runtime configure --runtime=docker
 sudo systemctl restart docker
 echo "[OK] NVIDIA Container Toolkit installed successfully"
