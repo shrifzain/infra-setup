@@ -1,0 +1,15 @@
+services:
+  tts-api:
+    image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
+    container_name: tts
+    network_mode: host
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all   # expose all GPUs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
