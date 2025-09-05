@@ -35,6 +35,8 @@ REPO_RAW_BASE="https://raw.githubusercontent.com/shrifzain/infra-setup/master"
 # ------------------------------
 echo "[STEP] Installing system dependencies..."
 sudo apt-get update -yq
+# prevent kernel auto-upgrades (no reboot prompts)
+sudo apt-mark hold linux-image-generic linux-headers-generic
 sudo apt-get install -yq ca-certificates curl gnupg lsb-release unzip git
 
 # ------------------------------
