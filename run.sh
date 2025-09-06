@@ -98,9 +98,14 @@ else
 fi
 
 # ------------------------------
-echo "[STEP] Downloading docker-compose.yml from repo..."
+echo "[STEP] Preparing project directory (tts)..."
+mkdir -p tts
+cd tts
+
+echo "[STEP] Downloading docker-compose.yml and nginx.conf from repo..."
 curl -s -o docker-compose.yml "$REPO_RAW_BASE/docker-compose.yml"
-echo "[OK] Downloaded docker-compose.yml"
+curl -s -o nginx.conf "$REPO_RAW_BASE/nginx.conf"
+echo "[OK] Files downloaded to $(pwd)"
 
 # ------------------------------
 echo "[STEP] Running Docker Compose..."
