@@ -17,6 +17,7 @@ echo "==========================================="
 # ------------------------------
 # Non-interactive apt mode
 export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a   # auto-restart services silently
 
 # ------------------------------
 # Arguments
@@ -38,6 +39,7 @@ sudo apt-get update -yq
 # prevent kernel auto-upgrades (no reboot prompts)
 sudo apt-mark hold linux-image-generic linux-headers-generic
 sudo apt-get install -yq ca-certificates curl gnupg lsb-release unzip git
+echo "[OK] Base dependencies installed"
 
 # ------------------------------
 echo "[STEP] Installing Docker..."
