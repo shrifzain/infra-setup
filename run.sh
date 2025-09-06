@@ -15,9 +15,13 @@ echo "Logs will be saved to: $LOG_FILE"
 echo "==========================================="
 
 # ------------------------------
-# Non-interactive apt mode
+# Non-interactive apt mode (no prompts, no reboots)
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a   # auto-restart services silently
+
+# ------------------------------
+# PREVENT kernel upgrades (must come before apt-get upgrade/install)
+sudo apt-mark hold linux-image-generic linux-headers-generic linux-image-$(uname -r)
 
 # ------------------------------
 # Arguments
@@ -36,8 +40,6 @@ REPO_RAW_BASE="https://raw.githubusercontent.com/shrifzain/infra-setup/master"
 # ------------------------------
 echo "[STEP] Installing system dependencies..."
 sudo apt-get update -yq
-# prevent kernel auto-upgrades (no reboot prompts)
-sudo apt-mark hold linux-image-generic linux-headers-generic
 sudo apt-get install -yq ca-certificates curl gnupg lsb-release unzip git
 echo "[OK] Base dependencies installed"
 
@@ -71,8 +73,6 @@ curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-contai
 # Add GPG key
 curl -s -L https://nvidia.github.io/libnvidia-container/gpgkey | \
   sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit.gpg
-# Prevent kernel upgrades (so no reboot prompt)
-sudo apt-mark hold linux-image-generic linux-headers-generic
 # Install toolkit silently without recommends
 sudo apt-get update -yq
 sudo apt-get install -yq --no-install-recommends nvidia-container-toolkit
@@ -111,7 +111,7 @@ echo "[OK] Files downloaded to $(pwd)"
 
 # ------------------------------
 echo "[STEP] Running Docker Compose..."
-sudo docker compose up -d
+sudo docker compose up -d --scale tts-api=8
 echo "[OK] Docker Compose started"
 
 # ------------------------------
