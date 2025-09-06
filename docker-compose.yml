@@ -1,38 +1,58 @@
 version: "3.9"
 
 services:
-  # ============================
-  # TTS Model Service (replicas)
-  # ============================
-  tts-api:
+  tts-1:
     image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
     environment:
-      - NVIDIA_VISIBLE_DEVICES=all    # Give container access to all GPUs
+      - NVIDIA_VISIBLE_DEVICES=MIG-a2f206ac-1730-5639-9081-6f5937d72015
     networks:
       - ttsnet
     restart: unless-stopped
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    # Note: No "ports" → replicas stay private (only NGINX talks to them)
 
-  # ============================
-  # NGINX Load Balancer
-  # ============================
-  nginx:
-    image: nginx:stable
-    container_name: nginx_lb
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro   # Use our config
-    ports:
-      - "8080:8080"   # Public REST endpoint
-      - "5001:5001"   # Public gRPC endpoint
-    depends_on:
-      - tts-api
+  tts-2:
+    image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=MIG-612cf87f-7ee8-5a41-9a01-4c0672107a6a
+    networks:
+      - ttsnet
+    restart: unless-stopped
+
+  tts-3:
+    image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=MIG-abd3c06c-267b-5a91-95f6-be5f3c568f4e
+    networks:
+      - ttsnet
+    restart: unless-stopped
+
+  tts-4:
+    image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=MIG-55f3fa0d-5f1a-5ee2-9491-d0cae33daf6e
+    networks:
+      - ttsnet
+    restart: unless-stopped
+
+  tts-5:
+    image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=MIG-d8d1cb58-9bbc-5fcd-8d23-7beceab43a2c
+    networks:
+      - ttsnet
+    restart: unless-stopped
+
+  tts-6:
+    image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=MIG-f7e7aa2e-e06c-5a29-a24f-f3769ab480b5
+    networks:
+      - ttsnet
+    restart: unless-stopped
+
+  tts-7:
+    image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=MIG-54b0111a-2c02-5279-a660-c221b5db6555
     networks:
       - ttsnet
     restart: unless-stopped
