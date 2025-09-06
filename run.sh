@@ -106,12 +106,12 @@ cd tts
 
 echo "[STEP] Downloading docker-compose.yml and nginx.conf from repo..."
 curl -s -o docker-compose.yml "$REPO_RAW_BASE/docker-compose.yml"
-curl -s -o nginx.conf "$REPO_RAW_BASE/nginx.conf"
+#curl -s -o nginx.conf "$REPO_RAW_BASE/nginx.conf"
 echo "[OK] Files downloaded to $(pwd)"
 
 # ------------------------------
 echo "[STEP] Running Docker Compose..."
-sudo docker compose up -d --scale tts-api=8
+sudo docker compose up -d 
 echo "[OK] Docker Compose started"
 
 # ------------------------------
