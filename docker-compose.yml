@@ -1,128 +1,80 @@
 version: "3.9"
 
 services:
-  # TTS containers (8 replicas, each bound to a MIG slice)
+  # TTS containers pinned to unique MIG slices
   tts-1:
     image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
+    runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=MIG-a2f206ac-1730-5639-9081-6f5937d72015
-    runtime: nvidia
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     networks:
       - ttsnet
     restart: unless-stopped
 
   tts-2:
     image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
+    runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=MIG-612cf87f-7ee8-5a41-9a01-4c0672107a6a
-    runtime: nvidia
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     networks:
       - ttsnet
     restart: unless-stopped
 
   tts-3:
     image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
+    runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=MIG-abd3c06c-267b-5a91-95f6-be5f3c568f4e
-    runtime: nvidia
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     networks:
       - ttsnet
     restart: unless-stopped
 
   tts-4:
     image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
+    runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=MIG-55f3fa0d-5f1a-5ee2-9491-d0cae33daf6e
-    runtime: nvidia
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     networks:
       - ttsnet
     restart: unless-stopped
 
   tts-5:
     image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
+    runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=MIG-d8d1cb58-9bbc-5fcd-8d23-7beceab43a2c
-    runtime: nvidia
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     networks:
       - ttsnet
     restart: unless-stopped
 
   tts-6:
     image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
+    runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=MIG-f7e7aa2e-e06c-5a29-a24f-f3769ab480b5
-    runtime: nvidia
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     networks:
       - ttsnet
     restart: unless-stopped
 
   tts-7:
     image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
+    runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=MIG-54b0111a-2c02-5279-a660-c221b5db6555
-    runtime: nvidia
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     networks:
       - ttsnet
     restart: unless-stopped
 
-  # NGINX as load balancer
+
+  # NGINX Load Balancer
   nginx:
     image: nginx:stable
     container_name: nginx_lb
     volumes:
       - /home/user/tts/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
-      - "8080:8080"   # REST API
-      - "5001:5001"   # gRPC API
+      - "8080:8080"   # REST
+      - "5001:5001"   # gRPC
     depends_on:
       - tts-1
       - tts-2
