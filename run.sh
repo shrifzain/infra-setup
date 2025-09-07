@@ -7,6 +7,20 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 echo "[INFO] Starting setup at $(date)"
 
 # =====================================================
+# Parse AWS credentials from args
+# =====================================================
+if [ $# -ne 3 ]; then
+    echo "[USAGE] $0 <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> <AWS_REGION>"
+    exit 1
+fi
+
+AWS_ACCESS_KEY_ID=$1
+AWS_SECRET_ACCESS_KEY=$2
+AWS_REGION=$3
+
+echo "[STEP] Using AWS Region: $AWS_REGION"
+
+# =====================================================
 # Config: Non-interactive apt
 # =====================================================
 export DEBIAN_FRONTEND=noninteractive
@@ -94,13 +108,26 @@ else
 fi
 
 # =====================================================
-# Step 6: Run MIG docker-compose generator
+# Step 6: Configure AWS CLI and ECR login
+# =====================================================
+echo "[STEP] Configuring AWS CLI..."
+aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
+aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
+aws configure set region "$AWS_REGION"
+
+ECR_REGISTRY="074697765782.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+echo "[STEP] Logging in to ECR: $ECR_REGISTRY..."
+aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+
+# =====================================================
+# Step 7: Run MIG docker-compose generator
 # =====================================================
 echo "[STEP] Generating docker-compose.yml via gen-compose.sh..."
 ./gen-compose.sh
 
 # =====================================================
-# Step 7: Start containers
+# Step 8: Start containers
 # =====================================================
 echo "[STEP] Starting containers..."
 docker-compose up -d
