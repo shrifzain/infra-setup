@@ -15,13 +15,9 @@ echo "Logs will be saved to: $LOG_FILE"
 echo "==========================================="
 
 # ------------------------------
-# Non-interactive apt mode (no prompts, no reboots)
+# Non-interactive apt mode
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a   # auto-restart services silently
-
-# ------------------------------
-# PREVENT kernel upgrades (must come before apt-get upgrade/install)
-sudo apt-mark hold linux-image-generic linux-headers-generic linux-image-$(uname -r)
 
 # ------------------------------
 # Arguments
@@ -40,6 +36,7 @@ REPO_RAW_BASE="https://raw.githubusercontent.com/shrifzain/infra-setup/master"
 # ------------------------------
 echo "[STEP] Installing system dependencies..."
 sudo apt-get update -yq
+sudo apt-mark hold linux-image-generic linux-headers-generic
 sudo apt-get install -yq ca-certificates curl gnupg lsb-release unzip git
 echo "[OK] Base dependencies installed"
 
@@ -66,17 +63,14 @@ echo "[OK] AWS CLI installed successfully"
 
 # ------------------------------
 echo "[STEP] Installing NVIDIA Container Toolkit..."
-# Add repo with signed-by option
 curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
   sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit.gpg] https://#' | \
   sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-# Add GPG key
 curl -s -L https://nvidia.github.io/libnvidia-container/gpgkey | \
   sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit.gpg
-# Install toolkit silently without recommends
+sudo apt-mark hold linux-image-generic linux-headers-generic
 sudo apt-get update -yq
 sudo apt-get install -yq --no-install-recommends nvidia-container-toolkit
-# Configure Docker runtime
 sudo nvidia-ctk runtime configure --runtime=docker
 sudo systemctl restart docker
 echo "[OK] NVIDIA Container Toolkit installed successfully"
@@ -100,18 +94,79 @@ else
 fi
 
 # ------------------------------
+echo "[STEP] Configuring NVIDIA MIG slices..."
+sudo nvidia-smi -i 0 -mig 1 || true
+sudo nvidia-smi mig -i 0 -cgi 19,19,19,19,19,19,19,20
+sudo nvidia-smi mig -i 0 -cci
+sleep 5
+echo "[OK] MIG configured"
+
+# ------------------------------
 echo "[STEP] Preparing project directory (tts)..."
 mkdir -p tts
 cd tts
 
-echo "[STEP] Downloading docker-compose.yml and nginx.conf from repo..."
-curl -s -o docker-compose.yml "$REPO_RAW_BASE/docker-compose.yml"
-#curl -s -o nginx.conf "$REPO_RAW_BASE/nginx.conf"
-echo "[OK] Files downloaded to $(pwd)"
+echo "[STEP] Downloading nginx.conf from repo..."
+curl -s -o nginx.conf "$REPO_RAW_BASE/nginx.conf"
+
+# ------------------------------
+echo "[STEP] Generating docker-compose.yml with MIG UUIDs..."
+
+MIG_UUIDS=($(nvidia-smi -L | grep "MIG" | awk -F '[()]' '{print $2}'))
+
+cat > docker-compose.yml <<EOF
+version: "3.9"
+
+services:
+EOF
+
+i=1
+for UUID in "${MIG_UUIDS[@]}"; do
+cat >> docker-compose.yml <<EOF
+  tts-$i:
+    image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=$UUID
+    networks:
+      - ttsnet
+    restart: unless-stopped
+
+EOF
+i=$((i+1))
+done
+
+cat >> docker-compose.yml <<EOF
+  nginx:
+    image: nginx:stable
+    container_name: nginx_lb
+    volumes:
+      - $(pwd)/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8080:8080"
+      - "5001:5001"
+    depends_on:
+EOF
+
+for j in $(seq 1 ${#MIG_UUIDS[@]}); do
+  echo "      - tts-$j" >> docker-compose.yml
+done
+
+cat >> docker-compose.yml <<EOF
+    networks:
+      - ttsnet
+    restart: unless-stopped
+
+networks:
+  ttsnet:
+    driver: bridge
+EOF
+
+echo "[OK] docker-compose.yml generated with ${#MIG_UUIDS[@]} MIG devices"
 
 # ------------------------------
 echo "[STEP] Running Docker Compose..."
-sudo docker compose up -d 
+sudo docker compose up -d
 echo "[OK] Docker Compose started"
 
 # ------------------------------
