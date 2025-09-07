@@ -81,5 +81,3 @@ echo "[OK] docker-compose.yml generated with 7 TTS containers + nginx"
 # =====================================================
 # Step 3: Launch containers
 # =====================================================
-echo "[STEP] Starting containers..."
-docker-compose up -d
