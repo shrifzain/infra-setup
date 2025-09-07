@@ -1,119 +1,112 @@
 #!/bin/bash
 set -euo pipefail
 
-# ------------------------------
-# Logging setup
-LOG_FILE="/var/log/setup.log"
-sudo mkdir -p /var/log
-sudo touch "$LOG_FILE"
-sudo chmod 666 "$LOG_FILE"
+LOG_FILE="setup.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
-echo "==========================================="
-echo "[START] Setup script started at $(date)"
-echo "Logs will be saved to: $LOG_FILE"
-echo "==========================================="
+echo "[INFO] Starting setup at $(date)"
 
-# ------------------------------
-# Non-interactive apt mode
+# =====================================================
+# Config: Non-interactive apt
+# =====================================================
 export DEBIAN_FRONTEND=noninteractive
-export NEEDRESTART_MODE=a   # auto-restart services silently
+export NEEDRESTART_MODE=a
 
-# ------------------------------
-# Arguments
-AWS_ACCESS_KEY_ID=${1:-}
-AWS_SECRET_ACCESS_KEY=${2:-}
-AWS_REGION=${3:-}
-
-if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$AWS_REGION" ]; then
-  echo "[ERROR] Usage: $0 <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> <AWS_REGION>"
-  exit 1
-fi
-
-# GitHub raw base URL (same repo as run.sh)
-REPO_RAW_BASE="https://raw.githubusercontent.com/shrifzain/infra-setup/master"
-
-# ------------------------------
-echo "[STEP] Installing system dependencies..."
+# =====================================================
+# Step 1: Install prerequisites
+# =====================================================
+echo "[STEP] Installing prerequisites..."
 sudo apt-get update -yq
-sudo apt-mark hold linux-image-generic linux-headers-generic
-sudo apt-get install -yq ca-certificates curl gnupg lsb-release unzip git
-echo "[OK] Base dependencies installed"
+sudo apt-get install -yq --no-install-recommends \
+    curl unzip git apt-transport-https ca-certificates gnupg lsb-release
 
-# ------------------------------
-echo "[STEP] Installing Docker..."
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-  https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt-get update -yq
-sudo apt-get install -yq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-sudo systemctl enable docker
-sudo systemctl restart docker
-echo "[OK] Docker installed successfully"
-
-# ------------------------------
-echo "[STEP] Installing AWS CLI v2..."
-curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-unzip -o awscliv2.zip
-sudo ./aws/install --update
-rm -rf aws awscliv2.zip
-echo "[OK] AWS CLI installed successfully"
-
-# ------------------------------
-echo "[STEP] Installing NVIDIA Container Toolkit..."
-curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
-  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit.gpg] https://#' | \
-  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-curl -s -L https://nvidia.github.io/libnvidia-container/gpgkey | \
-  sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit.gpg
-sudo apt-mark hold linux-image-generic linux-headers-generic
-sudo apt-get update -yq
-sudo apt-get install -yq --no-install-recommends nvidia-container-toolkit
-sudo nvidia-ctk runtime configure --runtime=docker
-sudo systemctl restart docker
-echo "[OK] NVIDIA Container Toolkit installed successfully"
-
-# ------------------------------
-echo "[STEP] Configuring AWS CLI..."
-aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
-aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
-aws configure set default.region "$AWS_REGION"
-echo "[OK] AWS CLI configured"
-
-# ------------------------------
-echo "[STEP] Logging into AWS ECR (if permitted)..."
-if aws sts get-caller-identity >/dev/null 2>&1; then
-  aws ecr get-login-password --region "$AWS_REGION" | \
-    sudo docker login --username AWS --password-stdin \
-    "$(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com" || true
-  echo "[OK] ECR login attempted"
+# =====================================================
+# Step 2: Install Docker if not installed
+# =====================================================
+if ! command -v docker &>/dev/null; then
+    echo "[STEP] Installing Docker..."
+    curl -fsSL https://get.docker.com | sh
+    sudo usermod -aG docker "$USER"
 else
-  echo "[WARN] Skipping ECR login (invalid credentials?)"
+    echo "[SKIP] Docker already installed"
 fi
 
-# ------------------------------
-echo "[STEP] Configuring NVIDIA MIG slices..."
-#sudo nvidia-smi -i 0 -mig 1 || true
-#sudo nvidia-smi mig -i 0 -cgi 19,19,19,19,19,19,19
-#sudo nvidia-smi mig -i 0 -cci
-#sleep 5
-#echo "[OK] MIG configured"
+# =====================================================
+# Step 3: Install Docker Compose if not installed
+# =====================================================
+if ! command -v docker-compose &>/dev/null; then
+    echo "[STEP] Installing Docker Compose..."
+    DOCKER_COMPOSE_VERSION="1.29.2"
+    sudo curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" \
+        -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+else
+    echo "[SKIP] Docker Compose already installed"
+fi
 
-# ------------------------------
-echo "[STEP] Preparing project directory (tts)..."
-mkdir -p tts
-cd tts
+# =====================================================
+# Step 4: Install AWS CLI if not installed
+# =====================================================
+if ! command -v aws &>/dev/null; then
+    echo "[STEP] Installing AWS CLI..."
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    unzip -o awscliv2.zip
+    sudo ./aws/install
+    rm -rf aws awscliv2.zip
+else
+    echo "[SKIP] AWS CLI already installed"
+fi
 
-echo "[STEP] Downloading nginx.conf from repo..."
-curl -s -o nginx.conf "$REPO_RAW_BASE/nginx.conf"
+# =====================================================
+# Step 5: Install NVIDIA Container Toolkit if not installed
+# =====================================================
+if ! dpkg -l | grep -q nvidia-container-toolkit; then
+    echo "[STEP] Installing NVIDIA Container Toolkit..."
+    curl -s -L https://nvidia.github.io/libnvidia-container/gpgkey | \
+        sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit.gpg
+    curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+        sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit.gpg] https://#' | \
+        sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    sudo apt-get update -yq
+    sudo apt-get install -yq --no-install-recommends nvidia-container-toolkit
+    sudo nvidia-ctk runtime configure --runtime=docker
+    sudo systemctl restart docker
+else
+    echo "[SKIP] NVIDIA Container Toolkit already installed"
+fi
 
-# ------------------------------
-echo "[STEP] Generating docker-compose.yml with MIG UUIDs..."
+# =====================================================
+# Step 6: Configure MIG mode and slices
+# =====================================================
+echo "[STEP] Configuring MIG mode..."
+sudo nvidia-smi -i 0 -mig 1 || true
+sudo nvidia-smi mig -i 0 -cgi 19,19,19,19,19,19,19,20 || true
+sudo nvidia-smi mig -i 0 -cci || true
 
-MIG_UUIDS=($(nvidia-smi -L | grep "MIG" | awk -F '[()]' '{print $2}'))
+# =====================================================
+# Step 7: Get MIG UUIDs
+# =====================================================
+echo "[STEP] Detecting MIG UUIDs..."
+MIG_UUIDS=($(nvidia-smi -L | grep "MIG-" | awk -F '[()]' '{print $2}'))
 
+if [ ${#MIG_UUIDS[@]} -eq 0 ]; then
+    echo "[ERROR] No MIG devices found. Exiting."
+    exit 1
+fi
+
+echo "[OK] Found ${#MIG_UUIDS[@]} MIG devices"
+
+# =====================================================
+# Step 8: Prepare app directory
+# =====================================================
+APP_DIR="$HOME/tts"
+mkdir -p "$APP_DIR"
+cd "$APP_DIR"
+
+# =====================================================
+# Step 9: Generate docker-compose.yml
+# =====================================================
+echo "[STEP] Generating docker-compose.yml..."
 cat > docker-compose.yml <<EOF
 version: "3.9"
 
@@ -123,17 +116,17 @@ EOF
 i=1
 for UUID in "${MIG_UUIDS[@]}"; do
 cat >> docker-compose.yml <<EOF
-  tts-$i:
+  tts-${i}:
     image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
     runtime: nvidia
     environment:
-      - NVIDIA_VISIBLE_DEVICES=$UUID
+      - NVIDIA_VISIBLE_DEVICES=${UUID}
     networks:
       - ttsnet
     restart: unless-stopped
 
 EOF
-i=$((i+1))
+((i++))
 done
 
 cat >> docker-compose.yml <<EOF
@@ -141,15 +134,15 @@ cat >> docker-compose.yml <<EOF
     image: nginx:stable
     container_name: nginx_lb
     volumes:
-      - $(pwd)/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - $APP_DIR/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "8080:8080"
       - "5001:5001"
     depends_on:
 EOF
 
-for j in $(seq 1 ${#MIG_UUIDS[@]}); do
-  echo "      - tts-$j" >> docker-compose.yml
+for ((j=1; j<=$((i-1)); j++)); do
+    echo "      - tts-${j}" >> docker-compose.yml
 done
 
 cat >> docker-compose.yml <<EOF
@@ -162,19 +155,22 @@ networks:
     driver: bridge
 EOF
 
-echo "[OK] docker-compose.yml generated with ${#MIG_UUIDS[@]} MIG devices"
+echo "[OK] docker-compose.yml generated with ${#MIG_UUIDS[@]} TTS containers + nginx"
 
-# ------------------------------
-echo "[STEP] Running Docker Compose..."
-sudo docker compose up -d
-echo "[OK] Docker Compose started"
+# =====================================================
+# Step 10: Copy nginx.conf if in repo
+# =====================================================
+if [ -f "$(dirname "$0")/nginx.conf" ]; then
+    cp "$(dirname "$0")/nginx.conf" "$APP_DIR/nginx.conf"
+    echo "[OK] nginx.conf copied"
+else
+    echo "[WARN] nginx.conf not found in repo"
+fi
 
-# ------------------------------
-echo "[STEP] Health-check: listing running containers"
-sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
+# =====================================================
+# Step 11: Run docker-compose
+# =====================================================
+echo "[STEP] Starting containers..."
+docker-compose up -d
 
-# ------------------------------
-echo "==========================================="
-echo "[DONE] Setup finished successfully at $(date)"
-echo "Logs saved to: $LOG_FILE"
-echo "==========================================="
+echo "[SUCCESS] Setup completed at $(date)"
