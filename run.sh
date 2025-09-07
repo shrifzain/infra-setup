@@ -12,6 +12,24 @@ echo "[INFO] Starting setup at $(date)"
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 
+APP_DIR="$HOME/tts"
+mkdir -p "$APP_DIR"
+cd "$APP_DIR"
+
+# =====================================================
+# Step 0: Ensure repo helper files exist
+# =====================================================
+if [ ! -f gen-compose.sh ]; then
+    echo "[STEP] Downloading gen-compose.sh..."
+    curl -s -o gen-compose.sh https://raw.githubusercontent.com/shrifzain/infra-setup/master/gen-compose.sh
+    chmod +x gen-compose.sh
+fi
+
+if [ ! -f nginx.conf ]; then
+    echo "[STEP] Downloading nginx.conf..."
+    curl -s -o nginx.conf https://raw.githubusercontent.com/shrifzain/infra-setup/master/nginx.conf
+fi
+
 # =====================================================
 # Step 1: Install prerequisites
 # =====================================================
@@ -76,30 +94,15 @@ else
 fi
 
 # =====================================================
-# Step 6: Clone repo (with gen-compose.sh + nginx.conf)
+# Step 6: Run MIG docker-compose generator
 # =====================================================
-APP_DIR="$HOME/tts"
-if [ ! -d "$APP_DIR" ]; then
-    echo "[STEP] Cloning repo into $APP_DIR..."
-    git clone https://github.com/shrifzain/infra-setup.git "$APP_DIR"
-else
-    echo "[STEP] Repo already exists, pulling latest changes..."
-    cd "$APP_DIR"
-    git reset --hard
-    git pull
-fi
-
-cd "$APP_DIR"
+echo "[STEP] Generating docker-compose.yml via gen-compose.sh..."
+./gen-compose.sh
 
 # =====================================================
-# Step 7: Run gen-compose.sh
+# Step 7: Start containers
 # =====================================================
-if [ -x "./gen-compose.sh" ]; then
-    echo "[STEP] Running gen-compose.sh..."
-    ./gen-compose.sh
-else
-    echo "[ERROR] gen-compose.sh not found or not executable!"
-    exit 1
-fi
+echo "[STEP] Starting containers..."
+docker-compose up -d
 
 echo "[SUCCESS] Setup completed at $(date)"
