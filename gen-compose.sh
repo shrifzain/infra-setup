@@ -1,26 +1,31 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "[STEP] Detecting MIG devices..."
-MIG_UUIDS=($(nvidia-smi -L | grep "MIG " | sed -n 's/.*UUID: \(MIG-[^)]*\)).*/\1/p'))
+echo "[STEP] Detecting MIG UUIDs..."
+MIG_UUIDS=($(nvidia-smi -L | grep "MIG-" | awk -F '[()]' '{print $2}' | grep -v '^$'))
 
-COUNT=${#MIG_UUIDS[@]}
-if [ "$COUNT" -eq 0 ]; then
-    echo "[ERROR] No MIG devices found. Did you enable MIG mode with 'nvidia-smi -i 0 -mig 1'?"
+if [ ${#MIG_UUIDS[@]} -eq 0 ]; then
+    echo "[ERROR] No MIG devices found. Exiting."
     exit 1
 fi
 
-echo "[OK] Found $COUNT MIG devices"
+echo "[OK] Found ${#MIG_UUIDS[@]} MIG devices"
 
-# Write .env file
+# =====================================================
+# Step 1: Write .env file with MIG UUIDs
+# =====================================================
 echo "[STEP] Writing .env file..."
 > .env
-for i in $(seq 1 $COUNT); do
-    echo "MIG_DEVICE_${i}=${MIG_UUIDS[$((i-1))]}" >> .env
+i=1
+for UUID in "${MIG_UUIDS[@]}"; do
+    echo "MIG_DEVICE_${i}=${UUID}" >> .env
+    ((i++))
 done
-echo "[OK] .env file created with $COUNT devices"
+echo "[OK] .env file created with $((i-1)) MIG devices"
 
-# Write docker-compose.yml
+# =====================================================
+# Step 2: Generate docker-compose.yml
+# =====================================================
 echo "[STEP] Generating docker-compose.yml..."
 cat > docker-compose.yml <<EOF
 version: "3.9"
@@ -28,8 +33,8 @@ version: "3.9"
 services:
 EOF
 
-# Generate TTS services
-for i in $(seq 1 $COUNT); do
+i=1
+for UUID in "${MIG_UUIDS[@]}"; do
 cat >> docker-compose.yml <<EOF
   tts-${i}:
     image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
@@ -42,23 +47,23 @@ cat >> docker-compose.yml <<EOF
     restart: unless-stopped
 
 EOF
+((i++))
 done
 
-# Add nginx service
 cat >> docker-compose.yml <<EOF
   nginx:
     image: nginx:stable
     container_name: nginx_lb
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - $(pwd)/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
-      - "8080:8080"   # REST
-      - "5001:5001"   # gRPC
+      - "8080:8080"
+      - "5001:5001"
     depends_on:
 EOF
 
-for i in $(seq 1 $COUNT); do
-    echo "      - tts-${i}" >> docker-compose.yml
+for ((j=1; j<=$((i-1)); j++)); do
+    echo "      - tts-${j}" >> docker-compose.yml
 done
 
 cat >> docker-compose.yml <<EOF
@@ -71,4 +76,10 @@ networks:
     driver: bridge
 EOF
 
-echo "[OK] docker-compose.yml generated with $COUNT TTS containers + nginx"
+echo "[OK] docker-compose.yml generated with ${#MIG_UUIDS[@]} TTS containers + nginx"
+
+# =====================================================
+# Step 3: Launch containers
+# =====================================================
+echo "[STEP] Starting containers..."
+docker-compose up -d
