@@ -1,27 +1,29 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "[STEP] Detecting MIG UUIDs..."
-MIG_UUIDS=($(nvidia-smi -L | grep "MIG-" | awk -F '[()]' '{print $2}' | grep -v '^$'))
+# =====================================================
+# Step 0: Detect MIG UUIDs
+# =====================================================
+echo "[STEP] Detecting MIG devices..."
+# Extract only MIG UUIDs
+MIG_UUIDS=($(nvidia-smi -L | grep "MIG " | sed -n 's/.*UUID: \(MIG-[^)]*\)).*/\1/p'))
 
-if [ ${#MIG_UUIDS[@]} -eq 0 ]; then
-    echo "[ERROR] No MIG devices found. Exiting."
+if [ ${#MIG_UUIDS[@]} -lt 7 ]; then
+    echo "[ERROR] Found only ${#MIG_UUIDS[@]} MIG devices, need at least 7"
     exit 1
 fi
 
 echo "[OK] Found ${#MIG_UUIDS[@]} MIG devices"
 
 # =====================================================
-# Step 1: Write .env file with MIG UUIDs
+# Step 1: Write .env file (limit to 7 MIGs)
 # =====================================================
 echo "[STEP] Writing .env file..."
 > .env
-i=1
-for UUID in "${MIG_UUIDS[@]}"; do
-    echo "MIG_DEVICE_${i}=${UUID}" >> .env
-    ((i++))
+for i in $(seq 1 7); do
+    echo "MIG_DEVICE_${i}=${MIG_UUIDS[$((i-1))]}" >> .env
 done
-echo "[OK] .env file created with $((i-1)) MIG devices"
+echo "[OK] .env file created with 7 MIG devices"
 
 # =====================================================
 # Step 2: Generate docker-compose.yml
@@ -33,8 +35,7 @@ version: "3.9"
 services:
 EOF
 
-i=1
-for UUID in "${MIG_UUIDS[@]}"; do
+for i in $(seq 1 7); do
 cat >> docker-compose.yml <<EOF
   tts-${i}:
     image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
@@ -47,7 +48,6 @@ cat >> docker-compose.yml <<EOF
     restart: unless-stopped
 
 EOF
-((i++))
 done
 
 cat >> docker-compose.yml <<EOF
@@ -62,7 +62,7 @@ cat >> docker-compose.yml <<EOF
     depends_on:
 EOF
 
-for ((j=1; j<=$((i-1)); j++)); do
+for j in $(seq 1 7); do
     echo "      - tts-${j}" >> docker-compose.yml
 done
 
@@ -76,7 +76,7 @@ networks:
     driver: bridge
 EOF
 
-echo "[OK] docker-compose.yml generated with ${#MIG_UUIDS[@]} TTS containers + nginx"
+echo "[OK] docker-compose.yml generated with 7 TTS containers + nginx"
 
 # =====================================================
 # Step 3: Launch containers
