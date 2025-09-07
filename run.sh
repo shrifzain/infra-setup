@@ -95,11 +95,11 @@ fi
 
 # ------------------------------
 echo "[STEP] Configuring NVIDIA MIG slices..."
-sudo nvidia-smi -i 0 -mig 1 || true
-sudo nvidia-smi mig -i 0 -cgi 19,19,19,19,19,19,19
-sudo nvidia-smi mig -i 0 -cci
-sleep 5
-echo "[OK] MIG configured"
+#sudo nvidia-smi -i 0 -mig 1 || true
+#sudo nvidia-smi mig -i 0 -cgi 19,19,19,19,19,19,19
+#sudo nvidia-smi mig -i 0 -cci
+#sleep 5
+#echo "[OK] MIG configured"
 
 # ------------------------------
 echo "[STEP] Preparing project directory (tts)..."
