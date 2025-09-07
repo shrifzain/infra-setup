@@ -76,101 +76,30 @@ else
 fi
 
 # =====================================================
-# Step 6: Configure MIG mode and slices
-# =====================================================
-#echo "[STEP] Configuring MIG mode..."
-#sudo nvidia-smi -i 0 -mig 1 || true
-#sudo nvidia-smi mig -i 0 -cgi 19,19,19,19,19,19,19,20 || true
-#sudo nvidia-smi mig -i 0 -cci || true
-
-# =====================================================
-# Step 7: Get MIG UUIDs (filter only MIG- lines)
-# =====================================================
-echo "[STEP] Detecting MIG UUIDs..."
-MIG_UUIDS=($(nvidia-smi -L | grep "MIG-" | awk -F '[()]' '{print $2}'))
-
-if [ ${#MIG_UUIDS[@]} -eq 0 ]; then
-    echo "[ERROR] No MIG devices found. Exiting."
-    exit 1
-fi
-
-echo "[OK] Found ${#MIG_UUIDS[@]} MIG devices"
-
-# =====================================================
-# Step 8: Prepare app directory
+# Step 6: Clone repo (with gen-compose.sh + nginx.conf)
 # =====================================================
 APP_DIR="$HOME/tts"
-mkdir -p "$APP_DIR"
+if [ ! -d "$APP_DIR" ]; then
+    echo "[STEP] Cloning repo into $APP_DIR..."
+    git clone https://github.com/shrifzain/infra-setup.git "$APP_DIR"
+else
+    echo "[STEP] Repo already exists, pulling latest changes..."
+    cd "$APP_DIR"
+    git reset --hard
+    git pull
+fi
+
 cd "$APP_DIR"
 
 # =====================================================
-# Step 9: Generate docker-compose.yml
+# Step 7: Run gen-compose.sh
 # =====================================================
-echo "[STEP] Generating docker-compose.yml..."
-cat > docker-compose.yml <<EOF
-version: "3.9"
-
-services:
-EOF
-
-i=1
-for UUID in "${MIG_UUIDS[@]}"; do
-cat >> docker-compose.yml <<EOF
-  tts-${i}:
-    image: 074697765782.dkr.ecr.us-east-1.amazonaws.com/tts:latest
-    runtime: nvidia
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=${UUID}
-    networks:
-      - ttsnet
-    restart: unless-stopped
-
-EOF
-((i++))
-done
-
-cat >> docker-compose.yml <<EOF
-  nginx:
-    image: nginx:stable
-    container_name: nginx_lb
-    volumes:
-      - $APP_DIR/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    ports:
-      - "8080:8080"
-      - "5001:5001"
-    depends_on:
-EOF
-
-for ((j=1; j<=$((i-1)); j++)); do
-    echo "      - tts-${j}" >> docker-compose.yml
-done
-
-cat >> docker-compose.yml <<EOF
-    networks:
-      - ttsnet
-    restart: unless-stopped
-
-networks:
-  ttsnet:
-    driver: bridge
-EOF
-
-echo "[OK] docker-compose.yml generated with ${#MIG_UUIDS[@]} TTS containers + nginx"
-
-# =====================================================
-# Step 10: Copy nginx.conf if in repo
-# =====================================================
-if [ -f "$(dirname "$0")/nginx.conf" ]; then
-    cp "$(dirname "$0")/nginx.conf" "$APP_DIR/nginx.conf"
-    echo "[OK] nginx.conf copied"
+if [ -x "./gen-compose.sh" ]; then
+    echo "[STEP] Running gen-compose.sh..."
+    ./gen-compose.sh
 else
-    echo "[WARN] nginx.conf not found in repo"
+    echo "[ERROR] gen-compose.sh not found or not executable!"
+    exit 1
 fi
-
-# =====================================================
-# Step 11: Run docker-compose
-# =====================================================
-echo "[STEP] Starting containers..."
-docker-compose up -d
 
 echo "[SUCCESS] Setup completed at $(date)"
