@@ -129,7 +129,7 @@ echo "[STEP] Generating docker-compose.yml via gen-compose.sh..."
 # =====================================================
 # Step 8: Start containers
 # =====================================================
-echo "[STEP] Starting containers..."
-docker-compose up -d
+#echo "[STEP] Starting containers..."
+#docker-compose up -d
 
 echo "[SUCCESS] Setup completed at $(date)"
