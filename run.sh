@@ -78,13 +78,13 @@ fi
 # =====================================================
 # Step 6: Configure MIG mode and slices
 # =====================================================
-echo "[STEP] Configuring MIG mode..."
-sudo nvidia-smi -i 0 -mig 1 || true
-sudo nvidia-smi mig -i 0 -cgi 19,19,19,19,19,19,19,20 || true
-sudo nvidia-smi mig -i 0 -cci || true
+#echo "[STEP] Configuring MIG mode..."
+#sudo nvidia-smi -i 0 -mig 1 || true
+#sudo nvidia-smi mig -i 0 -cgi 19,19,19,19,19,19,19,20 || true
+#sudo nvidia-smi mig -i 0 -cci || true
 
 # =====================================================
-# Step 7: Get MIG UUIDs
+# Step 7: Get MIG UUIDs (filter only MIG- lines)
 # =====================================================
 echo "[STEP] Detecting MIG UUIDs..."
 MIG_UUIDS=($(nvidia-smi -L | grep "MIG-" | awk -F '[()]' '{print $2}'))
