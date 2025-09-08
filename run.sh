@@ -9,10 +9,10 @@ echo "[INFO] Starting setup at $(date)"
 # =====================================================
 # Parse AWS credentials from args
 # =====================================================
-if [ $# -ne 3 ]; then
-    echo "[USAGE] $0 <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> <AWS_REGION>"
-    exit 1
-fi
+#if [ $# -ne 3 ]; then
+#    echo "[USAGE] $0 <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> <AWS_REGION>"
+#    exit 1
+#fi
 
 AWS_ACCESS_KEY_ID=$1
 AWS_SECRET_ACCESS_KEY=$2
@@ -33,16 +33,16 @@ cd "$APP_DIR"
 # =====================================================
 # Step 0: Ensure repo helper files exist
 # =====================================================
-if [ ! -f gen-compose.sh ]; then
-    echo "[STEP] Downloading gen-compose.sh..."
-    curl -s -o gen-compose.sh https://raw.githubusercontent.com/shrifzain/infra-setup/master/gen-compose.sh
-    chmod +x gen-compose.sh
-fi
+#if [ ! -f gen-compose.sh ]; then
+#    echo "[STEP] Downloading gen-compose.sh..."
+#    curl -s -o gen-compose.sh https://raw.githubusercontent.com/shrifzain/infra-setup/master/gen-compose.sh
+#    chmod +x gen-compose.sh
+#fi
 
-if [ ! -f nginx.conf ]; then
-    echo "[STEP] Downloading nginx.conf..."
-    curl -s -o nginx.conf https://raw.githubusercontent.com/shrifzain/infra-setup/master/nginx.conf
-fi
+#if [ ! -f nginx.conf ]; then
+ #   echo "[STEP] Downloading nginx.conf..."
+ #   curl -s -o nginx.conf https://raw.githubusercontent.com/shrifzain/infra-setup/master/nginx.conf
+#fi
 
 # =====================================================
 # Step 1: Install prerequisites
@@ -92,20 +92,20 @@ fi
 # =====================================================
 # Step 5: Install NVIDIA Container Toolkit if not installed
 # =====================================================
-if ! dpkg -l | grep -q nvidia-container-toolkit; then
-    echo "[STEP] Installing NVIDIA Container Toolkit..."
-    curl -s -L https://nvidia.github.io/libnvidia-container/gpgkey | \
-        sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit.gpg
-    curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
-        sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit.gpg] https://#' | \
-        sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-    sudo apt-get update -yq
-    sudo apt-get install -yq --no-install-recommends nvidia-container-toolkit
-    sudo nvidia-ctk runtime configure --runtime=docker
-    sudo systemctl restart docker
-else
-    echo "[SKIP] NVIDIA Container Toolkit already installed"
-fi
+#if ! dpkg -l | grep -q nvidia-container-toolkit; then
+ #   echo "[STEP] Installing NVIDIA Container Toolkit..."
+ #   curl -s -L https://nvidia.github.io/libnvidia-container/gpgkey | \
+ #       sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit.gpg
+ #   curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+  #      sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit.gpg] https://#' | \
+ #       sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+ #   sudo apt-get update -yq
+ #   sudo apt-get install -yq --no-install-recommends nvidia-container-toolkit
+ #   sudo nvidia-ctk runtime configure --runtime=docker
+ #   sudo systemctl restart docker
+#else
+#    echo "[SKIP] NVIDIA Container Toolkit already installed"
+#fi
 
 # =====================================================
 # Step 6: Configure AWS CLI and ECR login
