@@ -14,17 +14,17 @@ echo "[INFO] Starting setup at $(date)"
 #    exit 1
 #fi
 
-AWS_ACCESS_KEY_ID=$1
-AWS_SECRET_ACCESS_KEY=$2
-AWS_REGION=$3
+#AWS_ACCESS_KEY_ID=$1
+#AWS_SECRET_ACCESS_KEY=$2
+#AWS_REGION=$3
 
-echo "[STEP] Using AWS Region: $AWS_REGION"
+#echo "[STEP] Using AWS Region: $AWS_REGION"
 
 # =====================================================
 # Config: Non-interactive apt
 # =====================================================
-export DEBIAN_FRONTEND=noninteractive
-export NEEDRESTART_MODE=a
+#export DEBIAN_FRONTEND=noninteractive
+#export NEEDRESTART_MODE=a
 
 APP_DIR="$HOME/tts"
 mkdir -p "$APP_DIR"
@@ -55,26 +55,26 @@ sudo apt-get install -yq --no-install-recommends \
 # =====================================================
 # Step 2: Install Docker if not installed
 # =====================================================
-if ! command -v docker &>/dev/null; then
-    echo "[STEP] Installing Docker..."
-    curl -fsSL https://get.docker.com | sh
-    sudo usermod -aG docker "$USER"
-else
-    echo "[SKIP] Docker already installed"
-fi
+#if ! command -v docker &>/dev/null; then
+#    echo "[STEP] Installing Docker..."
+#    curl -fsSL https://get.docker.com | sh
+#    sudo usermod -aG docker "$USER"
+#else
+#    echo "[SKIP] Docker already installed"
+#fi
 
 # =====================================================
 # Step 3: Install Docker Compose if not installed
 # =====================================================
-if ! command -v docker-compose &>/dev/null; then
-    echo "[STEP] Installing Docker Compose..."
-    DOCKER_COMPOSE_VERSION="1.29.2"
-    sudo curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" \
-        -o /usr/local/bin/docker-compose
-    sudo chmod +x /usr/local/bin/docker-compose
-else
-    echo "[SKIP] Docker Compose already installed"
-fi
+#if ! command -v docker-compose &>/dev/null; then
+#    echo "[STEP] Installing Docker Compose..."
+#    DOCKER_COMPOSE_VERSION="1.29.2"
+#    sudo curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" \
+#        -o /usr/local/bin/docker-compose
+#    sudo chmod +x /usr/local/bin/docker-compose
+#else
+#    echo "[SKIP] Docker Compose already installed"
+#fi
 
 # =====================================================
 # Step 4: Install AWS CLI if not installed
